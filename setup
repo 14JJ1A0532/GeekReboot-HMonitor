@@ -1,0 +1,20 @@
+Environment required:-
+1. Python 3.x
+2. OpneCV
+  pip install opencv-python
+  pip install opencv-contrib-python
+3. Yolo v3
+4. NumPy
+  pip install numpy
+  
+  
+  Download yolov3.weights from the link https://pjreddie.com/media/files/yolov3.weights and save it in the 'yolo-coco' folder.
+  
+  
+  
+  After the above environment is satisfied,
+  
+  open the Command propmt with the yolo-video.py location and run the command as follows,
+  ------------------------------------------------------------------------------------------------------------
+  python yolo_video.py --input videos/YOUR_VIDEO.mp4 --output output/YOUR_OUTPUT_VIDEO.mp4 --yolo yolo-coco 
+  ------------------------------------------------------------------------------------------------------------
