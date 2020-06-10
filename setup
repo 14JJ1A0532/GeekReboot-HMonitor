@@ -13,5 +13,5 @@ Environment required:-
   
   open the Command propmt with the yolo-video.py location and run the command as follows, (PYTHON 3.7.2)
   ------------------------------------------------------------------------------------------------------------
-  python yolo-video.py --input videos/YOUR_VIDEO.mp4 --output output/YOUR_OUTPUT_VIDEO.mp4 --yolo yolo-coco 
+  python yolo-video.py --input videos/YOUR_VIDEO.mp4 --output output/YOUR_OUTPUT_VIDEO.mp4v --yolo yolo-coco 
   ------------------------------------------------------------------------------------------------------------
