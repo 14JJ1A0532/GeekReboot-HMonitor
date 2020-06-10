@@ -5,6 +5,7 @@ import imutils
 import time
 import cv2
 import os
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--input", required=True,
@@ -45,6 +46,9 @@ ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 vs = cv2.VideoCapture(args["input"])
 writer = None
 (W, H) = (None, None)
+
+#initialize the counter
+people = 0
 
 # try to determine the total number of frames in the video file
 try:
@@ -124,25 +128,29 @@ while True:
 				
 	# apply non-maxima suppression to suppress weak, overlapping
 	# bounding boxes
-	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
-		args["threshold"])
+	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"], args["threshold"])
+	
 	
 	# ensure at least one detection exists
 	if len(idxs) > 0:
 		# loop over the indexes we are keeping
+		people = 0
 		for i in idxs.flatten():
 			# extract the bounding box coordinates
 			(x, y) = (boxes[i][0], boxes[i][1])
 			(w, h) = (boxes[i][2], boxes[i][3])
-
+			people += 1
 			# draw a bounding box rectangle and label on the frame
 			color = [int(c) for c in COLORS[classIDs[i]]]
 			cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
 			text = "{}: {:.4f}".format(LABELS[classIDs[i]],
 				confidences[i])
-			cv2.putText(frame, text, (x, y - 5),
-				cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-				
+			cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+	
+	# write number of people in bottom corner
+	text = "Persons: {}".format(people)
+	cv2.putText(frame, text, (10, frame.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 2)			
+	
 	# check if the video writer is None
 	if writer is None:
 		# initialize our video writer
@@ -160,6 +168,11 @@ while True:
 	# write the output frame to disk
 	writer.write(frame)
 
+	
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break
+	
+print("[INFO] No. of People: ", people)
 # release the file pointers
 print("[INFO] cleaning up...")
 writer.release()
