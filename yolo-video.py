@@ -1,10 +1,106 @@
-# import the necessary packages
+# import the necessary packagesfo YOLO
 import numpy as np
 import argparse
 import imutils
 import time
 import cv2
 import os
+import webbrowser
+
+#Mail related imports
+import smtplib
+from string import Template
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+#location related imports
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+import time
+
+MY_ADDRESS = 'chandanakandagatla1@gmail.com'
+PASSWORD = 'kcmvp@2622'
+
+def get_contacts(filename):
+    """
+    Return two lists names, emails containing names and email addresses
+    read from a file specified by filename.
+    """
+    
+    names = []
+    emails = []
+    with open(filename, mode='r', encoding='utf-8') as contacts_file:
+        for a_contact in contacts_file:
+            names.append(a_contact.split()[0])
+            emails.append(a_contact.split()[1])
+    return names, emails
+	
+def sendMail(mapString):
+	print(mapString)
+	names, emails = get_contacts('myContacts.txt') 
+	
+	# set up the SMTP server
+	s = smtplib.SMTP(host='smtp.gmail.com', port=587)
+	s.starttls()
+	s.login(MY_ADDRESS, PASSWORD)
+
+	# For each contact, send the email:
+	for name, email in zip(names, emails):
+		msg = MIMEMultipart()       # create a message
+
+		# setup the parameters of the message
+		msg['From']=MY_ADDRESS
+		msg['To']=email
+		msg['Subject']="URGENT: People Gathering Alert"
+
+		# Create the body of the message (a plain-text and an HTML version).
+		# link = '<a href="{0}">{1}</a>'.format(destination, description)
+		html = """\
+            <html>
+              <head></head>
+              <body>
+                <p>Heyy!!!<br>
+                   Here is the link <a href="{str1}">Open Map Link</a>
+                </p>
+              </body>
+            </html>
+            """.format(str1 = mapString)
+
+        # Record the MIME types of both parts - text/plain and text/html.
+		part1 = MIMEText(html, 'html')
+
+        # Attach parts into message container.
+        # According to RFC 2046, the last part of a multipart message, in this case
+        # the HTML message, is best and preferred.
+		msg.attach(part1)
+        
+        # send the message via the server set up earlier.
+		s.send_message(msg)
+		del msg
+        
+    # Terminate the SMTP session and close the connection
+	s.quit()
+	
+def getLocation():
+    options = Options()
+    options.add_argument("--use-fake-ui-for-media-stream")
+    timeout = 30
+    driver = webdriver.Chrome(executable_path = './chromedriver.exe', chrome_options=options)
+    driver.get("https://mycurrentlocation.net/")
+    wait = WebDriverWait(driver, timeout)
+    time.sleep(3)
+    longitude = driver.find_elements_by_xpath('//*[@id="longitude"]')
+    longitude = [x.text for x in longitude]
+    longitude = str(longitude[0])
+    latitude = driver.find_elements_by_xpath('//*[@id="latitude"]')
+    latitude = [x.text for x in latitude]
+    latitude = str(latitude[0])
+    #accuracy = driver.find_elements_by_xpath('//*[@id="accuracy"]/strong')
+    #accuracy = [x.text for x in accuracy]
+    #accuracy = str(accuracy[0])
+    driver.quit()
+    return (latitude,longitude) #,accuracy)
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -48,7 +144,10 @@ writer = None
 (W, H) = (None, None)
 
 #initialize the counter
-people = 0
+peopleCounter = 0
+frameCounter = 0
+threshold = 5
+
 
 # try to determine the total number of frames in the video file
 try:
@@ -134,21 +233,28 @@ while True:
 	# ensure at least one detection exists
 	if len(idxs) > 0:
 		# loop over the indexes we are keeping
-		people = 0
+		peopleCounter = 0
 		for i in idxs.flatten():
 			# extract the bounding box coordinates
 			(x, y) = (boxes[i][0], boxes[i][1])
 			(w, h) = (boxes[i][2], boxes[i][3])
-			people += 1
 			# draw a bounding box rectangle and label on the frame
 			color = [int(c) for c in COLORS[classIDs[i]]]
 			cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
 			text = "{}: {:.4f}".format(LABELS[classIDs[i]],
 				confidences[i])
 			cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			peopleCounter +=1
+	
+	if peopleCounter > threshold:
+		frameCounter +=1
+		if frameCounter == 4:
+			break
+	elif frameCounter > 0:
+		frameCounter -= 1
 	
 	# write number of people in bottom corner
-	text = "Persons: {}".format(people)
+	text = "Persons: {}".format(peopleCounter)
 	cv2.putText(frame, text, (10, frame.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 2)			
 	
 	# check if the video writer is None
@@ -167,12 +273,14 @@ while True:
 				
 	# write the output frame to disk
 	writer.write(frame)
-
 	
-	if cv2.waitKey(1) & 0xFF == ord('q'):
-		break
-	
-print("[INFO] No. of People: ", people)
+print("[INFO] No. of People: ", peopleCounter)
+if peopleCounter > threshold:
+	lat, long = getLocation()
+	mapString = "https://www.google.com/maps/place/" + lat + "," + long
+	webbrowser.open(mapString,new=2)
+	sendMail(mapString)
+	print(lat, long)
 # release the file pointers
 print("[INFO] cleaning up...")
 writer.release()
