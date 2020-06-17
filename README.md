@@ -38,5 +38,8 @@ Conclusion:-
 
 This hence helps us to control the spread of pandemic COVID 19.
 
+
+Note: The Demo Presentation is attached as HMONITOR-DEMO.pdf
+
   
   
