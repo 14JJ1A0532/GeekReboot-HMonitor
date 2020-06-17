@@ -6,101 +6,8 @@ import time
 import cv2
 import os
 import webbrowser
-
-#Mail related imports
-import smtplib
-from string import Template
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-#location related imports
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-import time
-
-MY_ADDRESS = 'chandanakandagatla1@gmail.com'
-PASSWORD = 'kcmvp@2622'
-
-def get_contacts(filename):
-    """
-    Return two lists names, emails containing names and email addresses
-    read from a file specified by filename.
-    """
-    
-    names = []
-    emails = []
-    with open(filename, mode='r', encoding='utf-8') as contacts_file:
-        for a_contact in contacts_file:
-            names.append(a_contact.split()[0])
-            emails.append(a_contact.split()[1])
-    return names, emails
-	
-def sendMail(mapString):
-	print(mapString)
-	names, emails = get_contacts('myContacts.txt') 
-	
-	# set up the SMTP server
-	s = smtplib.SMTP(host='smtp.gmail.com', port=587)
-	s.starttls()
-	s.login(MY_ADDRESS, PASSWORD)
-
-	# For each contact, send the email:
-	for name, email in zip(names, emails):
-		msg = MIMEMultipart()       # create a message
-
-		# setup the parameters of the message
-		msg['From']=MY_ADDRESS
-		msg['To']=email
-		msg['Subject']="URGENT: People Gathering Alert"
-
-		# Create the body of the message (a plain-text and an HTML version).
-		# link = '<a href="{0}">{1}</a>'.format(destination, description)
-		html = """\
-            <html>
-              <head></head>
-              <body>
-                <p>Heyy!!!<br>
-                   Here is the link <a href="{str1}">Open Map Link</a>
-                </p>
-              </body>
-            </html>
-            """.format(str1 = mapString)
-
-        # Record the MIME types of both parts - text/plain and text/html.
-		part1 = MIMEText(html, 'html')
-
-        # Attach parts into message container.
-        # According to RFC 2046, the last part of a multipart message, in this case
-        # the HTML message, is best and preferred.
-		msg.attach(part1)
-        
-        # send the message via the server set up earlier.
-		s.send_message(msg)
-		del msg
-        
-    # Terminate the SMTP session and close the connection
-	s.quit()
-	
-def getLocation():
-    options = Options()
-    options.add_argument("--use-fake-ui-for-media-stream")
-    timeout = 30
-    driver = webdriver.Chrome(executable_path = './chromedriver.exe', chrome_options=options)
-    driver.get("https://mycurrentlocation.net/")
-    wait = WebDriverWait(driver, timeout)
-    time.sleep(3)
-    longitude = driver.find_elements_by_xpath('//*[@id="longitude"]')
-    longitude = [x.text for x in longitude]
-    longitude = str(longitude[0])
-    latitude = driver.find_elements_by_xpath('//*[@id="latitude"]')
-    latitude = [x.text for x in latitude]
-    latitude = str(latitude[0])
-    #accuracy = driver.find_elements_by_xpath('//*[@id="accuracy"]/strong')
-    #accuracy = [x.text for x in accuracy]
-    #accuracy = str(accuracy[0])
-    driver.quit()
-    return (latitude,longitude) #,accuracy)
+import locationService
+import mailService
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -147,6 +54,7 @@ writer = None
 peopleCounter = 0
 frameCounter = 0
 threshold = 5
+mapCounter = 0
 
 
 # try to determine the total number of frames in the video file
@@ -276,11 +184,21 @@ while True:
 	
 print("[INFO] No. of People: ", peopleCounter)
 if peopleCounter > threshold:
-	lat, long = getLocation()
-	mapString = "https://www.google.com/maps/place/" + lat + "," + long
-	webbrowser.open(mapString,new=2)
-	sendMail(mapString)
-	print(lat, long)
+	while True:
+		lat, long = locationService.getLocation()
+		if lat != '':
+			break
+		else:
+			mapCounter += 1
+			if mapCounter > 3:
+				 break
+	if lat != '':
+		mapString = "https://www.google.com/maps/place/" + lat + "," + long
+		webbrowser.open(mapString, new=2)
+		mailService.sendMail(mapString)
+		print(lat, long)
+	else:
+		print("Not able to find the location")
 # release the file pointers
 print("[INFO] cleaning up...")
 writer.release()
